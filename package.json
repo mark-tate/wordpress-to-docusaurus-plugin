@@ -1,0 +1,46 @@
+{
+  "name": "wordpress-to-docusaurus-plugin",
+  "version": "0.0.1",
+  "description": "Docusaurus plugin for importing Wordpress posts",
+  "main": "dist/index.js",
+  "repository": "https://github.com/mark-tate/wordpress-to-docusaurus-plugin",
+  "author": "Mark Tate",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "lint": "prettier --check src/**/*.ts",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "{src}/**/*.{ts}": [
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "graphql": "^15.4.0",
+    "graphql-request": "^3.4.0"
+  },
+  "engines": {
+    "node": ">=10.9.0"
+  },
+  "devDependencies": {
+    "@docusaurus/types": "^2.0.0-alpha.56",
+    "@types/node": "^13.11.1",
+    "@types/webpack-merge": "^4.1.5",
+    "husky": "^4.3.6",
+    "lint-staged": "^10.5.3",
+    "prettier": "^2.2.1",
+    "typescript": "^3.8.3"
+  },
+  "keywords": [
+    "docusaurus",
+    "wordpress",
+    "markdown",
+    "plugin"
+  ]
+}
