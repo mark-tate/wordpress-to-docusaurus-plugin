@@ -1,9 +1,9 @@
 # wordpress-to-docusaurus-plugin
 
-A Docusaurus Plugin which will import content from Wordpress based on a GraphQL query.
+A Docusaurus Plugin which will import Blog content from Wordpress based on a GraphQL query.
 
 Designed to work with Blog posts but could be used as an example for anyone, trying to  
-create something bespoke.  
+create a headless CMS solution.  
 
 ## Configuration
 
@@ -17,9 +17,10 @@ Add this plugin to the plugins array in `docusaurus.config.js`.
 
 ```
 module.exports = {  
-  // ...  
+  // ...  Rest of your Docusaurus config
   plugins: [  
-    [require.resolve('wordpress-to-docusaurus-plugin'),  
+    [
+        require.resolve('wordpress-to-docusaurus-plugin'),  
         {  
           // URL of the Wordpress GraphQL endpoint   
           url: 'http://my-wordpress-instance/graphql',   
@@ -30,25 +31,6 @@ module.exports = {
 ```
 
 ## Extending
-
-###  outputPath 
-
-`outputPath?: string`
-
-The `outputPath` option can be ued to define a custom output path (default=blog).  
-
-###  query
-
-`query?: string`
-
-The `query` option can be ued to define a cutom query.  
-
-###  translateContent
-
-`translateContent: (content: string, post: Post) => string`
-
-The`translateContent` option can be configured to convert the basic WP html semantics back to 
-markdown, you can extend the default translate function or replace it.
 
 ###  createFrontmatter
 
@@ -62,7 +44,26 @@ The`createFrontmatter` option can be configured to create custom Frontmatter.
 
 The`createPreview` option can be configured to create a custom preview.
 
-###  Sample config
+###  outputPath 
+
+`outputPath?: string`
+
+The `outputPath` option can be used to define a custom output path (default=blog).  
+
+###  query
+
+`query?: string`
+
+The `query` option can be used to define a custom query.  
+
+###  translateContent
+
+`translateContent: (content: string, post: Post) => string`
+
+The `translateContent` option can be configured to convert the Wordpress HTML back to 
+markdown, you can extend the default translate function or replace it.
+
+###  Sample Docusaurus config entry
 
 ```
 import { defaultTranslate } from 'wordpress-to-docusaurus-plugin';
