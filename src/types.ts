@@ -15,6 +15,8 @@ export interface Post {
     excerpt: string;
     /** Featured image */
     featuredImage?: Image;
+    /** Last modified date of post */
+    modifiedGmt: string;
     /** Post id */
     slug: string;
     /** Post title description */
@@ -22,23 +24,27 @@ export interface Post {
   };
 }
 
-export interface LoadedContent {
+export interface LoadContent {
   posts: {
     readonly edges: ReadonlyArray<Post>;
   };
 }
 
+export type CreateFrontmatterCallback = (post: Post) => string;
+export type CreatePreviewCallback = (post: Post) => string;
+export type TranslateContentCallback = (content: string, post: Post) => string;
+
 export interface PluginOptions {
   /** Create Frontmatter function */
-  createFrontmatter?: (post: Post) => string;
+  createFrontmatter?: CreateFrontmatterCallback;
   /** Create Preview function */
-  createPreview?: (post: Post) => string;
+  createPreview?: CreatePreviewCallback;
   /** Output sub-directory, below site dir (default blog) */
   outputPath?: string;
   /** GraphQL query */
   query?: string;
   /** Translate content function */
-  translateContent?: (content: string, post: Post) => string;
+  translateContent?: TranslateContentCallback;
   /** URL of the Wordpress GraphQL endpoint **/
   url: string;
   /** Array of css files to load */

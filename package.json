@@ -1,6 +1,6 @@
 {
   "name": "wordpress-to-docusaurus-plugin",
-  "version": "0.0.3",
+  "version": "1.0.0",
   "description": "Docusaurus plugin for importing Wordpress posts",
   "main": "dist/index.js",
   "repository": "https://github.com/mark-tate/wordpress-to-docusaurus-plugin",

@@ -1,9 +1,19 @@
 import path from "path";
-const fs = require("fs").promises;
+const existsSync = require("fs").existsSync;
+const fsPromises = require("fs").promises;
+const statSync = require("fs").statSync;
+const utimesSync = require("fs").utimesSync;
 
 import { request as graphQLRequest } from "graphql-request";
-import { LoadedContent, PluginOptions, Post } from "./types";
-import { LoadContext, PluginContentLoadedActions } from "@docusaurus/types";
+import {
+  CreateFrontmatterCallback,
+  CreatePreviewCallback,
+  LoadContent,
+  PluginOptions,
+  Post,
+  TranslateContentCallback,
+} from "./types";
+import { LoadContext } from "@docusaurus/types";
 
 const defaultQuery = ` 
     query { 
@@ -20,7 +30,8 @@ const defaultQuery = `
                       sourceUrl
                     }
                   }
-                  content
+                  content,
+                  modifiedGmt
                 } 
             } 
         } 
@@ -35,7 +46,7 @@ export function defaultTranslateContent(content: string): string {
       // move lists to a new line
       .replace(/<\/li>/g, "</li>  \n")
       // code-blocks to markdown code block
-      .replace(/<pre class="wp-block-code"><code>/g, "\n```\n")
+      .replace(/<pre [^>]*class="wp-block-code"[^>]*><code [^>]*>/g, "\n```\n")
       .replace(/<\/code><\/pre>/g, "\n```\n")
       // remove WP width and height from images
       .replace(
@@ -43,8 +54,10 @@ export function defaultTranslateContent(content: string): string {
         (_match: string, match1: string, match2: string) => `${match1}${match2}`
       )
       // paragraphs to markdown paragraphs
-      .replace(/<p>/g, "")
-      .replace(/<\/p>/g, "  `\n")
+      .replace(/<p[^>]*>/g, "")
+      .replace(/<\/p>/g, "  \n")
+      .replace(/style="[^"]*"/g, "")
+      .replace(/class="/g, 'className="')
   );
 }
 
@@ -78,6 +91,42 @@ function formatBlogDate(date: Date): string {
   );
 }
 
+const writePost = (
+  post: Post,
+  outputPath: string,
+  {
+    createFrontmatter,
+    createPreview,
+    translateContent,
+  }: {
+    createFrontmatter: CreateFrontmatterCallback;
+    createPreview: CreatePreviewCallback;
+    translateContent: TranslateContentCallback;
+  }
+) => {
+  const { content, modifiedGmt } = post.node;
+  const blogModifiedDate = new Date(modifiedGmt);
+  const blogDoc = [
+    "---",
+    createFrontmatter(post),
+    "---",
+    createPreview(post),
+    "",
+    "<!--truncate-->",
+    translateContent(content, post),
+  ].join("\n");
+  return fsPromises
+    .writeFile(outputPath, blogDoc)
+    .then(() => {
+      utimesSync(outputPath, blogModifiedDate, blogModifiedDate);
+      console.log(`Saved ${outputPath}`);
+      return content;
+    })
+    .catch((err: Error) => {
+      console.error(`Error Saving ${outputPath} - ${err}`);
+    });
+};
+
 export default function pluginWordpressToDocusaurus(
   context: LoadContext,
   options: PluginOptions
@@ -96,41 +145,51 @@ export default function pluginWordpressToDocusaurus(
     getClientModules() {
       return theme;
     },
-    async loadContent(): Promise<LoadedContent> {
-      const response = await graphQLRequest(url, query);
-      return response;
-    },
-    async contentLoaded({
-      content,
-    }: {
-      readonly content: LoadedContent;
-      readonly actions: PluginContentLoadedActions;
-    }): Promise<string[]> {
+    async loadContent(): Promise<LoadContent[]> {
+      const content = await graphQLRequest(url, query);
       const { posts: { edges = [] } = {} } = content;
-      const postPromises = edges.map(async (post: Post) => {
-        const { content, date: dateStr, slug } = post.node;
-        const blogDate = new Date(dateStr);
-        const blogFile = `${formatBlogDate(blogDate)}-${slug}.mdx`;
-        const blogPath = path.resolve(context.siteDir, outputPath, blogFile);
-        const blogDoc = [
-          "---",
-          createFrontmatter(post),
-          "---",
-          createPreview(post),
-          "",
-          "<!--truncate-->",
-          translateContent(content, post),
-        ].join("\n");
-        return fs
-          .writeFile(blogPath, blogDoc)
-          .then(() => {
-            console.log(`Saved ${blogPath}`);
-          })
-          .catch((err: Error) => {
-            console.error(`Error Saving ${blogPath} - ${err}`);
+      const postPromises: Array<Promise<LoadContent>> = edges.reduce(
+        (results: Array<Promise<LoadContent>>, post: Post) => {
+          const { date: dateStr, slug, modifiedGmt } = post.node;
+          const blogDate = new Date(dateStr);
+          const blogFile = `${formatBlogDate(blogDate)}-${slug}.mdx`;
+          const blogOutputPath = path.resolve(
+            context.siteDir,
+            outputPath,
+            blogFile
+          );
+          const blogModifiedDate = new Date(modifiedGmt);
+          const isExistingPost = existsSync(blogOutputPath);
+          if (isExistingPost) {
+            const localFile = statSync(blogOutputPath);
+            const localModifiedGmt = new Date(localFile.mtime);
+            if (
+              blogModifiedDate.toISOString() === localModifiedGmt.toISOString()
+            ) {
+              console.warn(
+                `The remote version of ${blogOutputPath} has not changed`
+              );
+              return [...results, Promise.resolve(content)];
+            } else if (localModifiedGmt > blogModifiedDate) {
+              console.warn(
+                [
+                  `The local version of ${blogOutputPath} has been modified, so will not be updated.`,
+                  "Remove the local file/change to restore to the remote version",
+                ].join("\n")
+              );
+              return [...results, Promise.resolve(content)];
+            }
+          }
+          const writeBlogPromise = writePost(post, blogOutputPath, {
+            createFrontmatter,
+            createPreview,
+            translateContent,
           });
-      });
-      return await Promise.all(postPromises);
+          return [...results, writeBlogPromise];
+        },
+        []
+      );
+      return Promise.all(postPromises);
     },
   };
 }
